@@ -1,0 +1,104 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "v1/oauth.proto",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "v1AccessTokenResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "$ref": "#/definitions/v1Token"
+        },
+        "identity": {
+          "$ref": "#/definitions/v1Identity"
+        },
+        "raw": {
+          "type": "string"
+        }
+      }
+    },
+    "v1AuthResponse": {
+      "type": "object",
+      "properties": {
+        "redirect_to": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Identity": {
+      "type": "object",
+      "properties": {
+        "OpenId": {
+          "type": "string"
+        },
+        "UnionId": {
+          "type": "string"
+        },
+        "Nick": {
+          "type": "string"
+        },
+        "Source": {
+          "type": "string"
+        },
+        "Avatar": {
+          "type": "string"
+        },
+        "Email": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ProfileResponse": {
+      "type": "object",
+      "properties": {
+        "raw": {
+          "type": "string"
+        },
+        "identity": {
+          "$ref": "#/definitions/v1Identity"
+        }
+      }
+    },
+    "v1RefreshTokenResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "$ref": "#/definitions/v1Token"
+        }
+      }
+    },
+    "v1Token": {
+      "type": "object",
+      "properties": {
+        "access_token": {
+          "type": "string"
+        },
+        "refresh_token": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "expires_in": {
+          "type": "string",
+          "format": "int64"
+        },
+        "token_type": {
+          "type": "string"
+        },
+        "id_token": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
