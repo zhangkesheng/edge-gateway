@@ -73,8 +73,8 @@ func (g *GithubService) AccessToken(ctx context.Context, req *api.AccessTokenReq
 	}
 
 	result := gjson.ParseBytes(body)
-	if result.Get("errcode").Int() != 0 {
-		return onError(errors.New(result.Get("errmsg").String()))
+	if len(result.Get("error").String()) != 0 {
+		return onError(errors.New(result.Get("error_description").String()))
 	}
 
 	return &api.AccessTokenResponse{
@@ -117,8 +117,9 @@ func (g *GithubService) Profile(ctx context.Context, req *api.ProfileRequest) (*
 
 	result := gjson.ParseBytes(body)
 
-	if result.Get("error").Int() != 0 {
-		return onError(errors.New(result.Get("error_description").String()))
+	errMsg := result.Get("message").String()
+	if len(errMsg) != 0 {
+		return onError(errors.New(errMsg))
 	}
 
 	return &api.ProfileResponse{
