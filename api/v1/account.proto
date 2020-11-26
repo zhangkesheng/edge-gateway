@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package edge.account.v1;
+
+option go_package = "api";
+
+import "google/empty.proto";
+
+service Account {
+    rpc Info (google.protobuf.Empty) returns (InfoResponse);
+    rpc Login (LoginRequest) returns (LoginResponse);
+    rpc Callback (CallbackRequest) returns (CallbackResponse);
+    rpc Token (TokenRequest) returns (TokenResponse);
+    rpc Refresh (RefreshRequest) returns (RefreshResponse);
+    rpc Verify (VerifyRequest) returns (VerifyResponse);
+    rpc Logout (LogoutRequest) returns (LogoutResponse);
+    // TODO binding account
+}
+
+message InfoResponse {
+    message Client {
+        string type = 1;
+        string client_id = 2;
+    }
+    string name = 1;
+    string desc = 2;
+    repeated Client clients = 3;
+}
+
+message LoginRequest {
+    string response_type = 1;
+    string clientId = 2;
+    string redirect_url = 3;
+    string scope = 4;
+    string state = 5;
+}
+
+message LoginResponse {
+    string redirect_to = 1;
+}
+
+message CallbackRequest {
+    string code = 1;
+    string state = 2;
+}
+
+message CallbackResponse {
+    string redirect_url = 1;
+}
+
+message TokenRequest {
+    string grant_type = 1;
+    string code = 2;
+    string state = 3;
+    string client_id = 4;
+}
+
+message TokenResponse {
+    string access_token = 1;
+    string id_token = 3;
+    int64 expires_in = 4;
+}
+
+message RefreshRequest {
+    string access_token = 1;
+}
+
+message RefreshResponse {
+
+}
+
+message VerifyRequest {
+    string token = 1;
+}
+
+message VerifyResponse {
+    string sub = 1;
+}
+
+message LogoutRequest {
+    string token = 1;
+}
+
+message LogoutResponse {
+}
