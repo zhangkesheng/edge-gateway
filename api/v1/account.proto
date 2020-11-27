@@ -20,11 +20,12 @@ service Account {
 message InfoResponse {
     message Client {
         string type = 1;
-        string client_id = 2;
+        string key = 2;
     }
     string name = 1;
     string desc = 2;
-    repeated Client clients = 3;
+    string favicon = 3;
+    repeated Client clients = 4;
 }
 
 message LoginRequest {
