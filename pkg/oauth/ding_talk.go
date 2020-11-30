@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -69,35 +68,23 @@ func (d *DingTalkLoginService) AccessToken(ctx context.Context, req *api.AccessT
 	}
 	tokenReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(tokenReq)
-	if err != nil {
-		return onError(err)
-	}
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return onError(err)
-	}
-
-	result := gjson.ParseBytes(body)
-	if result.Get("errcode").Int() != 0 {
-		return onError(errors.New(result.Get("errmsg").String()))
-	}
-
-	userInfo := result.Get("user_info")
-	return &api.AccessTokenResponse{
-		Identity: &api.Identity{
-			OpenId:  userInfo.Get("openid").String(),
-			UnionId: userInfo.Get("unionid").String(),
-			Nick:    userInfo.Get("nick").String(),
-			Source:  "dingtalk",
-			Avatar:  "",
-			Email:   "",
-		},
-		Raw: userInfo.String(),
-	}, nil
+	return doAuthRequest(tokenReq, func(result gjson.Result) (*api.AccessTokenResponse, error) {
+		if result.Get("errcode").Int() != 0 {
+			return nil, errors.New(result.Get("errmsg").String())
+		}
+		userInfo := result.Get("user_info")
+		return &api.AccessTokenResponse{
+			Identity: &api.Identity{
+				OpenId:  userInfo.Get("openid").String(),
+				UnionId: userInfo.Get("unionid").String(),
+				Nick:    userInfo.Get("nick").String(),
+				Source:  "dingtalk",
+				Avatar:  "",
+				Email:   "",
+			},
+			Raw: userInfo.String(),
+		}, nil
+	})
 }
 
 func (d *DingTalkLoginService) RefreshToken(ctx context.Context, req *api.RefreshTokenRequest) (*api.RefreshTokenResponse, error) {

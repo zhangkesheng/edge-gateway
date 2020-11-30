@@ -1,6 +1,11 @@
 package oauth
 
 import (
+	"io/ioutil"
+	"net/http"
+
+	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
 )
 
@@ -12,7 +17,6 @@ func NewFactory() *Factory {
 }
 
 // TODO handler function
-
 func (f *Factory) New(source Source, config Config) api.OAuthClientServer {
 	switch source {
 	case DingTalkLogin:
@@ -47,4 +51,30 @@ type Config struct {
 	ApiUrl          string
 	DefaultRedirect string
 	DefaultScope    string
+}
+
+func doAuthRequest(req *http.Request, handler func(result gjson.Result) (*api.AccessTokenResponse, error)) (*api.AccessTokenResponse, error) {
+	onError := func(err error) (*api.AccessTokenResponse, error) {
+		return nil, errors.Wrap(err, "Auth.Request")
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return onError(err)
+	}
+
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return onError(err)
+	}
+
+	result := gjson.ParseBytes(body)
+
+	if resp, err := handler(result); err != nil {
+		return onError(err)
+	} else {
+		return resp, nil
+	}
 }

@@ -60,31 +60,20 @@ func (g *GithubService) AccessToken(ctx context.Context, req *api.AccessTokenReq
 	tokenReq.Header.Set("Content-Type", "application/json")
 	tokenReq.Header.Set("Accept", "application/json")
 
-	resp, err := http.DefaultClient.Do(tokenReq)
-	if err != nil {
-		return onError(err)
-	}
+	return doAuthRequest(tokenReq, func(result gjson.Result) (*api.AccessTokenResponse, error) {
+		if len(result.Get("error").String()) != 0 {
+			return nil, errors.New(result.Get("error_description").String())
+		}
 
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return onError(err)
-	}
-
-	result := gjson.ParseBytes(body)
-	if len(result.Get("error").String()) != 0 {
-		return onError(errors.New(result.Get("error_description").String()))
-	}
-
-	return &api.AccessTokenResponse{
-		Token: &api.Token{
-			AccessToken: result.Get("access_token").String(),
-			Scope:       result.Get("scope").String(),
-			TokenType:   result.Get("token_type").String(),
-		},
-		Raw: result.String(),
-	}, nil
+		return &api.AccessTokenResponse{
+			Token: &api.Token{
+				AccessToken: result.Get("access_token").String(),
+				Scope:       result.Get("scope").String(),
+				TokenType:   result.Get("token_type").String(),
+			},
+			Raw: result.String(),
+		}, nil
+	})
 }
 
 func (g *GithubService) RefreshToken(ctx context.Context, req *api.RefreshTokenRequest) (*api.RefreshTokenResponse, error) {
