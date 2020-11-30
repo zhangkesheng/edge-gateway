@@ -4,7 +4,16 @@ import (
 	"github.com/zhangkesheng/edge-gateway/api/v1"
 )
 
-func New(source Source, config Config) api.OAuthClientServer {
+type Factory struct {
+}
+
+func NewFactory() *Factory {
+	return &Factory{}
+}
+
+// TODO handler function
+
+func (f *Factory) New(source Source, config Config) api.OAuthClientServer {
 	switch source {
 	case DingTalkLogin:
 		return NewDingTalk(config)
