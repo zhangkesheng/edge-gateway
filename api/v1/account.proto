@@ -18,19 +18,19 @@ service Account {
 }
 
 message InfoResponse {
-    message Client {
+    message Provider {
         string type = 1;
         string key = 2;
     }
     string name = 1;
     string desc = 2;
     string favicon = 3;
-    repeated Client clients = 4;
+    repeated Provider providers = 4;
 }
 
 message LoginRequest {
     string response_type = 1;
-    string clientId = 2;
+    string provider_key = 2;
     string redirect_url = 3;
     string scope = 4;
     string state = 5;
