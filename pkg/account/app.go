@@ -3,10 +3,14 @@ package account
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
+	"github.com/zhangkesheng/edge-gateway/pkg/utils"
 )
 
 type Info struct {
@@ -43,7 +47,7 @@ func (app *App) Info(ctx context.Context, req *empty.Empty) (*api.InfoResponse, 
 
 func (app *App) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginResponse, error) {
 	onError := func(err error) (*api.LoginResponse, error) {
-		return nil, errors.Wrap(err, "App.Login")
+		return nil, errors.Wrap(err, "Account.Login")
 	}
 
 	client, ok := app.config.providers[req.GetProviderKey()]
@@ -73,7 +77,90 @@ func (app *App) Callback(ctx context.Context, req *api.CallbackRequest) (*api.Ca
 }
 
 func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenResponse, error) {
-	panic("implement me")
+	onError := func(err error) (*api.TokenResponse, error) {
+		return nil, errors.Wrap(err, "Account.Token")
+	}
+	provider, ok := app.config.providers[req.GetProviderKey()]
+	if !ok {
+		return onError(errors.New(fmt.Sprintf("Provider [%s] not found", req.GetProviderKey())))
+	}
+
+	result, err := provider.AccessToken(ctx, &api.AccessTokenRequest{
+		Code:  req.GetCode(),
+		State: req.GetState(),
+	})
+	if err != nil {
+		return onError(err)
+	}
+
+	if result.GetIdentity() == nil {
+		profile, err := provider.Profile(ctx, &api.ProfileRequest{
+			AccessToken: result.GetToken().GetAccessToken(),
+		})
+		if err != nil {
+			return onError(err)
+		}
+		result.Identity = profile.GetIdentity()
+		result.Raw = profile.GetRaw()
+	}
+
+	// Get user account by `clientId` and `Response.OpenId`
+	userAccount, err := app.config.storage.GetUserAccount(ctx, result.GetIdentity().GetSource(), result.GetIdentity().GetOpenId())
+	if err != nil {
+		return onError(err)
+	}
+
+	// New user when user account is null
+	if userAccount == nil {
+		// User sub
+		sub := strings.ReplaceAll(uuid.New().String(), "-", "")
+
+		userAccount = &UserAccount{
+			UserSub:      sub,
+			OpenId:       result.GetIdentity().GetOpenId(),
+			UnionId:      result.GetIdentity().GetUnionId(),
+			Nick:         result.GetIdentity().GetNick(),
+			Source:       result.GetIdentity().GetSource(),
+			Avatar:       result.GetIdentity().GetAvatar(),
+			Email:        result.GetIdentity().GetEmail(),
+			AccessToken:  result.GetToken().GetAccessToken(),
+			RefreshToken: result.GetToken().GetRefreshToken(),
+			Raw:          result.GetRaw(),
+		}
+		if result.GetToken().GetExpiresIn() > 0 {
+			userAccount.ExpiredAt = time.Now().Add(time.Duration(result.GetToken().GetExpiresIn()) * time.Second).Unix()
+		}
+
+		if err = app.config.storage.SaveUserAccount(ctx, userAccount); err != nil {
+			return onError(err)
+		}
+		if err = app.config.storage.SaveUser(ctx, &User{
+			Sub:            sub,
+			PrimaryAccount: userAccount.Id,
+		}); err != nil {
+			return onError(err)
+		}
+	}
+
+	// TODO: Modify user account when login again
+
+	// New token
+	token, err := app.config.sm.New(ctx, userAccount.UserSub)
+	if err != nil {
+		return onError(err)
+	}
+
+	// Generate id token
+	idToken, err := utils.JwtEncode(result.GetIdentity(), req.GetProviderKey())
+	if err != nil {
+		return onError(err)
+	}
+	// Create token
+	return &api.TokenResponse{
+		AccessToken: token.AccessToken,
+		ExpiresIn:   token.ExpiresIn,
+		IdToken:     idToken,
+	}, nil
 }
 
 func (app *App) Refresh(ctx context.Context, req *api.RefreshRequest) (*api.RefreshResponse, error) {
