@@ -43,6 +43,7 @@ message LoginResponse {
 message CallbackRequest {
     string code = 1;
     string state = 2;
+    string provider_key = 3;
 }
 
 message CallbackResponse {
@@ -63,7 +64,7 @@ message TokenResponse {
 }
 
 message RefreshRequest {
-    string access_token = 1;
+    string token = 1;
 }
 
 message RefreshResponse {

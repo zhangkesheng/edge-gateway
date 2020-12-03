@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -14,9 +15,10 @@ import (
 )
 
 type Info struct {
-	Title   string
-	Desc    string
-	Favicon string
+	title       string
+	desc        string
+	favicon     string
+	redirectUrl string
 }
 
 type Config struct {
@@ -39,8 +41,8 @@ func (app *App) Info(ctx context.Context, req *empty.Empty) (*api.InfoResponse, 
 		})
 	}
 	return &api.InfoResponse{
-		Name:      app.config.info.Title,
-		Desc:      app.config.info.Desc,
+		Name:      app.config.info.title,
+		Desc:      app.config.info.desc,
 		Providers: providers,
 	}, nil
 }
@@ -73,7 +75,30 @@ func (app *App) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginRes
 }
 
 func (app *App) Callback(ctx context.Context, req *api.CallbackRequest) (*api.CallbackResponse, error) {
-	panic("implement me")
+	onError := func(err error) (*api.CallbackResponse, error) {
+		return nil, errors.Wrap(err, "Account.Callback")
+	}
+
+	token, err := app.Token(ctx, &api.TokenRequest{
+		GrantType:   "Bearer",
+		Code:        req.GetCode(),
+		State:       req.GetState(),
+		ProviderKey: req.GetProviderKey(),
+	})
+
+	if err != nil {
+		return onError(err)
+	}
+
+	redirect, err := url.Parse(app.config.info.redirectUrl)
+	if err != nil {
+		return onError(err)
+	}
+
+	redirect.Query().Add("token", token.GetAccessToken())
+	return &api.CallbackResponse{
+		RedirectUrl: redirect.String(),
+	}, nil
 }
 
 func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenResponse, error) {
@@ -164,15 +189,41 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 }
 
 func (app *App) Refresh(ctx context.Context, req *api.RefreshRequest) (*api.RefreshResponse, error) {
-	panic("implement me")
+	onError := func(err error) (*api.RefreshResponse, error) {
+		return nil, errors.Wrap(err, "Account.Refresh")
+	}
+	if _, err := app.config.sm.Verify(ctx, req.GetToken()); err != nil {
+		return onError(err)
+	}
+	if err := app.config.sm.Refresh(ctx, req.GetToken()); err != nil {
+		return onError(err)
+	}
+	return &api.RefreshResponse{}, nil
 }
 
 func (app *App) Verify(ctx context.Context, req *api.VerifyRequest) (*api.VerifyResponse, error) {
-	panic("implement me")
+	onError := func(err error) (*api.VerifyResponse, error) {
+		return nil, errors.Wrap(err, "Account.Verify")
+	}
+
+	if sub, err := app.config.sm.Verify(ctx, req.GetToken()); err != nil {
+		return onError(err)
+	} else {
+		return &api.VerifyResponse{
+			Sub: sub,
+		}, nil
+	}
 }
 
 func (app *App) Logout(ctx context.Context, req *api.LogoutRequest) (*api.LogoutResponse, error) {
-	panic("implement me")
+	onError := func(err error) (*api.LogoutResponse, error) {
+		return nil, errors.Wrap(err, "App.Logout")
+	}
+	if err := app.config.sm.Clear(ctx, req.GetToken()); err != nil {
+		return onError(err)
+	}
+
+	return &api.LogoutResponse{}, nil
 }
 
 func New(config Config) api.AccountServer {
