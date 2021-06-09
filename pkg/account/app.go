@@ -195,7 +195,7 @@ func (app *App) Refresh(ctx context.Context, req *api.RefreshRequest) (*api.Refr
 	if _, err := app.config.sm.Verify(ctx, req.GetToken()); err != nil {
 		return onError(err)
 	}
-	if err := app.config.sm.Refresh(ctx, req.GetToken()); err != nil {
+	if _, err := app.config.sm.Refresh(ctx, req.GetToken()); err != nil {
 		return onError(err)
 	}
 	return &api.RefreshResponse{}, nil

@@ -18,7 +18,7 @@ type Token struct {
 
 type SessionManager interface {
 	New(ctx context.Context, sub string) (*Token, error)
-	Refresh(ctx context.Context, token string) error
+	Refresh(ctx context.Context, token string) (*Token, error)
 	Verify(ctx context.Context, token string) (string, error)
 	Clear(ctx context.Context, token string) error
 }
@@ -59,14 +59,26 @@ func (r *redisSM) New(ctx context.Context, sub string) (*Token, error) {
 	return token, nil
 }
 
-func (r *redisSM) Refresh(ctx context.Context, token string) error {
-	onError := func(err error) error {
-		return errors.Wrap(err, "RedisSM.Refresh")
+func (r *redisSM) Refresh(ctx context.Context, token string) (*Token, error) {
+	onError := func(err error) (*Token, error) {
+		return nil, errors.Wrap(err, "RedisSM.Refresh")
 	}
-	if err := r.cli.Expire(token, time.Duration(r.expiresIn)*time.Second).Err(); err != nil {
+
+	sub, err := r.Verify(ctx, token)
+	if err != nil {
 		return onError(err)
 	}
-	return nil
+
+	if err := r.Clear(ctx, token); err != nil {
+		return onError(err)
+	}
+
+	newToken, err := r.New(ctx, sub)
+	if err != nil {
+		return onError(err)
+	}
+
+	return newToken, nil
 }
 
 func (r *redisSM) Verify(ctx context.Context, token string) (string, error) {
