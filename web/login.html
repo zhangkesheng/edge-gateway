@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>{{.name}}-Login</title>
+  <link rel="stylesheet" type="text/css" href="//at.alicdn.com/t/font_2142759_uahjiaj8k4g.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background-size: 100%;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+
+    .container {
+      justify-content: center;
+      align-items: center;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .login {
+      width: 440px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 40px;
+      min-height: 500px;
+      color: rgba(0, 0, 0, .87);
+      box-shadow: 0 3px 1px -2px rgba(0, 0, 0, .2), 0 2px 2px 0 rgba(0, 0, 0, .14), 0 1px 5px 0 rgba(0, 0, 0, .12);
+    }
+
+    .login .header {
+      text-align: center;
+      border-bottom: solid 1px rgba(0, 0, 0, .12);
+      padding-bottom: 24px;
+      margin-bottom: 24px;
+    }
+
+    .login .header .logo {
+
+    }
+
+    .login .header .name {
+      font-size: 2rem;
+      font-weight: 400;
+    }
+
+    .login .header .desc {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .login .clients {
+      color: #666;
+      text-align: center;
+    }
+
+    .login .clients a {
+      display: inline-block;
+      text-align: center;
+      line-height: 2em;
+      cursor: pointer;
+      margin: 0 8px;
+    }
+
+    .login .iconfont {
+      font-size: 48px;
+    }
+  </style>
+
+</head>
+
+<body>
+<div id="app">
+  <div class="container">
+    <div class="login">
+      <div class="header">
+        <div class="logo">
+          <i class="iconfont icon-authenticationbg"></i>
+        </div>
+        <div class="name">{{.name}}</div>
+        <div class="desc">{{.desc}}</div>
+      </div>
+      <div class="clients">
+          {{range .info.Providers}}
+            <a onclick="window.location.href='{{$.basePath}}/account/client/{{.key}}/login?redirect=true'">
+                {{if eq .type "dingtalk"}}
+                  <i class="iconfont icon-dingtalk-circle"></i>
+                  <div class="tip">钉钉</div>
+                {{else if eq .type "github"}}
+                  <i class="iconfont icon-github"></i>
+                  <div class="tip">Github</div>
+                {{end}}
+            </a>
+          {{end}}
+      </div>
+      <div class="footer"></div>
+    </div>
+  </div>
+</div>
+</body>
+<script>
+  const date = new Date();
+  document.getElementsByTagName("body")[0].style.backgroundImage = `url('https://image.bestzks.com/${ date.getFullYear() }${ date.getMonth() + 1 }${ date.getDate() }')`
+</script>
+</html>

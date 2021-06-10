@@ -6,12 +6,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhangkesheng/edge-gateway/internal/base"
+	"github.com/zhangkesheng/edge-gateway/pkg/edge"
 )
 
 type App struct {
-	Router http.Handler
-	stop   context.CancelFunc
+	Router   http.Handler
+	stop     context.CancelFunc
+	instance edge.App
 }
 
 func New() *App {
@@ -52,6 +53,8 @@ func (app *App) Server() {
 func (app *App) reload() {
 	router := gin.New()
 
+	router.LoadHTMLGlob("D:/code/mbxc/go/src/edge-gateway-github/web/*")
+
 	router.GET("/hello", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "OK"})
 	})
@@ -62,7 +65,7 @@ func (app *App) reload() {
 		app.stop()
 	})
 
-	var edges []base.Api
+	edges := app.instance.Edges()
 	for _, edge := range edges {
 		edge.Router(router.Group(edge.Namespace()))
 	}

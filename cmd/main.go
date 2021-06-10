@@ -17,7 +17,3 @@ func main() {
 		log.Fatalf("listen: %s\n", err)
 	}
 }
-
-func server() {
-
-}

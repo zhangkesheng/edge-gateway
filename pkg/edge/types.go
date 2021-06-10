@@ -1,4 +1,4 @@
-package base
+package edge
 
 import (
 	"github.com/gin-gonic/gin"

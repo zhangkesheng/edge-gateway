@@ -2,11 +2,13 @@ package account
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -15,9 +17,6 @@ import (
 )
 
 type Info struct {
-	title       string
-	desc        string
-	favicon     string
 	redirectUrl string
 }
 
@@ -41,8 +40,6 @@ func (app *App) Info(ctx context.Context, req *empty.Empty) (*api.InfoResponse, 
 		})
 	}
 	return &api.InfoResponse{
-		Name:      app.config.info.title,
-		Desc:      app.config.info.desc,
 		Providers: providers,
 	}, nil
 }
@@ -228,4 +225,16 @@ func (app *App) Logout(ctx context.Context, req *api.LogoutRequest) (*api.Logout
 
 func New(config Config) api.AccountServer {
 	return &App{config: config}
+}
+
+func NewAccount(redirectUrl, secret, issuer string, expiresIn int64, redisCli *redis.Client, db *sql.DB) api.AccountServer {
+	return &App{config: Config{
+		info: Info{
+			redirectUrl: redirectUrl,
+		},
+		sm:        newRedisSessionManager(redisCli, expiresIn, secret, issuer),
+		storage:   newRdsStorage(db),
+		providers: map[string]api.OAuthClientServer{},
+	}}
+
 }
