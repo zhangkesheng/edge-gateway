@@ -95,6 +95,53 @@ func (e *Edge) Router(r gin.IRouter) {
 		})
 
 		// Account auth client api
+		acCliGroup := acGroup.Group("/client/:clientId")
+		acCliGroup.GET("authorize", func(c *gin.Context) {
+			clientId := c.Param("clientId")
+			var req struct {
+				State        string `form:"state"`
+				RedirectUrl  string `form:"redirectUrl"`
+				Redirect     bool   `form:"redirect"`
+				ResponseType string `form:"responseType"`
+				Scope        string `form:"scope"`
+			}
+			if err := c.BindQuery(&req); err != nil {
+				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				return
+			}
+
+			ctx := c.Request.Context()
+			resp, err := e.AccountSvc.Login(ctx, &api.LoginRequest{
+				ResponseType: req.ResponseType,
+				ProviderKey:  clientId,
+				RedirectUrl:  req.RedirectUrl,
+				Scope:        req.Scope,
+				State:        req.State,
+			})
+
+			if err != nil {
+				_ = c.AbortWithError(http.StatusInternalServerError, err)
+			}
+
+			if req.Redirect {
+				c.Redirect(http.StatusSeeOther, resp.GetRedirectTo())
+			}
+
+			handleJsonResp(c, err, resp)
+		})
+
+		acCliGroup.GET("callback", func(c *gin.Context) {
+			clientId := c.Param("clientId")
+
+			ctx := c.Request.Context()
+			resp, err := e.AccountSvc.Callback(ctx, &api.CallbackRequest{
+				State:       c.Query("state"),
+				Code:        c.Query("code"),
+				ProviderKey: clientId,
+			})
+
+			handleJsonResp(c, err, resp)
+		})
 	}
 
 	// 业务api
