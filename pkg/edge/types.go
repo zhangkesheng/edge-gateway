@@ -1,6 +1,8 @@
 package edge
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -18,8 +20,16 @@ type ResultWrapper struct {
 
 func Success(data interface{}) *ResultWrapper {
 	return &ResultWrapper{
-		Code:    200,
+		Code:    http.StatusOK,
 		Message: "OK",
 		Data:    data,
+	}
+}
+
+func InternalErr(err error) *ResultWrapper {
+	return &ResultWrapper{
+		Code:    http.StatusInternalServerError,
+		Message: "ERROR",
+		Data:    err,
 	}
 }

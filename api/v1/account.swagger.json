@@ -34,15 +34,6 @@
     "v1InfoResponse": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string"
-        },
-        "desc": {
-          "type": "string"
-        },
-        "favicon": {
-          "type": "string"
-        },
         "providers": {
           "type": "array",
           "items": {
@@ -63,7 +54,16 @@
       "type": "object"
     },
     "v1RefreshResponse": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "access_token": {
+          "type": "string"
+        },
+        "expires_in": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
     },
     "v1TokenResponse": {
       "type": "object",

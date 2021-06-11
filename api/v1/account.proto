@@ -22,9 +22,7 @@ message InfoResponse {
         string type = 1;
         string key = 2;
     }
-    string name = 1;
-    string desc = 2;
-    string favicon = 3;
+
     repeated Provider providers = 4;
 }
 
@@ -68,7 +66,8 @@ message RefreshRequest {
 }
 
 message RefreshResponse {
-
+    string access_token = 1;
+    int64 expires_in = 2;
 }
 
 message VerifyRequest {
