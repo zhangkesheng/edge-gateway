@@ -16,8 +16,7 @@ func NewFactory() *Factory {
 	return &Factory{}
 }
 
-// TODO handler function
-func (f *Factory) New(source Source, config Config) api.OAuthClientServer {
+func New(source Source, config Config) api.OAuthClientServer {
 	switch source {
 	case DingTalkLogin:
 		return NewDingTalk(config)
