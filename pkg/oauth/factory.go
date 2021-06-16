@@ -22,6 +22,8 @@ func New(source Source, config Config) api.OAuthClientServer {
 		return NewDingTalk(config)
 	case GitHub:
 		return NewGithub(config)
+	case MiniProgram:
+		return NewMiniProgram(config)
 	default:
 		return nil
 	}
@@ -39,6 +41,7 @@ const (
 	// 第三方服务
 	DingTalkLogin
 	GitHub
+	MiniProgram
 )
 
 type Config struct {

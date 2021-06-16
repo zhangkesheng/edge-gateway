@@ -56,4 +56,6 @@ func TestEdge(t *testing.T) {
 		resp := doTestRequest("/status")
 		assert.Equal(t, "OK", gjson.Get(resp, "status").String())
 	})
+
+	// TODO: 补充测试
 }
