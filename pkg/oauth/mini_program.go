@@ -67,11 +67,11 @@ func (srv *MiniProgramService) AccessToken(ctx context.Context, req *api.AccessT
 }
 
 func (srv *MiniProgramService) RefreshToken(ctx context.Context, req *api.RefreshTokenRequest) (*api.RefreshTokenResponse, error) {
-	panic("implement me")
+	return &api.RefreshTokenResponse{}, nil
 }
 
 func (srv *MiniProgramService) Profile(ctx context.Context, req *api.ProfileRequest) (*api.ProfileResponse, error) {
-	panic("implement me")
+	return &api.ProfileResponse{}, nil
 }
 
 func NewMiniProgram(config Config) api.OAuthClientServer {
