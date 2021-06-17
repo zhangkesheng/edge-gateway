@@ -1,13 +1,16 @@
 package edge
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
+	"github.com/zhangkesheng/edge-gateway/pkg/account"
 )
 
 const (
@@ -172,6 +175,21 @@ func (e *Edge) Namespace() string {
 	return e.Info.BasePath
 }
 
-func NewEdge() Api {
-	return &Edge{}
+type Config struct {
+	Info Info
+
+	// Account config
+	DB                 *sql.DB
+	RedisCli           *redis.Client
+	AccountRedirectUrl string
+	TokenSecret        string
+	TokenExpired       int64
+	AuthClient         map[string]api.OAuthClientServer
+}
+
+func NewEdge(config Config) Api {
+	return &Edge{
+		Info:       config.Info,
+		AccountSvc: account.NewAccount(config.AccountRedirectUrl, config.TokenSecret, config.Info.Name, config.TokenExpired, config.RedisCli, config.DB, config.AuthClient),
+	}
 }

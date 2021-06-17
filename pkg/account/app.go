@@ -231,14 +231,14 @@ func New(config Config) api.AccountServer {
 	return &App{config: config}
 }
 
-func NewAccount(redirectUrl, secret, issuer string, expiresIn int64, redisCli *redis.Client, db *sql.DB) api.AccountServer {
+func NewAccount(redirectUrl, secret, issuer string, expiresIn int64, redisCli *redis.Client, db *sql.DB, providers map[string]api.OAuthClientServer) api.AccountServer {
 	return &App{config: Config{
 		info: Info{
 			redirectUrl: redirectUrl,
 		},
 		sm:        newRedisSessionManager(redisCli, expiresIn, secret, issuer),
 		storage:   newRdsStorage(db),
-		providers: map[string]api.OAuthClientServer{},
+		providers: providers,
 	}}
 
 }
