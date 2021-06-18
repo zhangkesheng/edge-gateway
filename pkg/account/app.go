@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
+	"github.com/zhangkesheng/edge-gateway/pkg/oauth"
 	"github.com/zhangkesheng/edge-gateway/pkg/utils"
 )
 
@@ -20,20 +21,16 @@ type Info struct {
 	redirectUrl string
 }
 
-type Config struct {
+type App struct {
 	info      Info
 	sm        SessionManager
 	storage   Storage
 	providers map[string]api.OAuthClientServer
 }
 
-type App struct {
-	config Config
-}
-
 func (app *App) Info(ctx context.Context, req *empty.Empty) (*api.InfoResponse, error) {
 	var providers []*api.InfoResponse_Provider
-	for v, _ := range app.config.providers {
+	for v, _ := range app.providers {
 		providers = append(providers, &api.InfoResponse_Provider{
 			Type: v,
 			Key:  v,
@@ -49,7 +46,7 @@ func (app *App) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginRes
 		return nil, errors.Wrap(err, "Account.Login")
 	}
 
-	client, ok := app.config.providers[req.GetProviderKey()]
+	client, ok := app.providers[req.GetProviderKey()]
 	if !ok {
 		return onError(errors.New(fmt.Sprintf("Provider [%s] not found", req.GetProviderKey())))
 	}
@@ -87,7 +84,7 @@ func (app *App) Callback(ctx context.Context, req *api.CallbackRequest) (*api.Ca
 		return onError(err)
 	}
 
-	redirect, err := url.Parse(app.config.info.redirectUrl)
+	redirect, err := url.Parse(app.info.redirectUrl)
 	if err != nil {
 		return onError(err)
 	}
@@ -102,7 +99,7 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 	onError := func(err error) (*api.TokenResponse, error) {
 		return nil, errors.Wrap(err, "Account.Token")
 	}
-	provider, ok := app.config.providers[req.GetProviderKey()]
+	provider, ok := app.providers[req.GetProviderKey()]
 	if !ok {
 		return onError(errors.New(fmt.Sprintf("Provider [%s] not found", req.GetProviderKey())))
 	}
@@ -127,7 +124,7 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 	}
 
 	// Get user account by `clientId` and `Response.OpenId`
-	userAccount, err := app.config.storage.GetUserAccount(ctx, result.GetIdentity().GetSource(), result.GetIdentity().GetOpenId())
+	userAccount, err := app.storage.GetUserAccount(ctx, result.GetIdentity().GetSource(), result.GetIdentity().GetOpenId())
 	if err != nil {
 		return onError(err)
 	}
@@ -153,10 +150,10 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 			userAccount.ExpiredAt = time.Now().Add(time.Duration(result.GetToken().GetExpiresIn()) * time.Second).Unix()
 		}
 
-		if err = app.config.storage.SaveUserAccount(ctx, userAccount); err != nil {
+		if err = app.storage.SaveUserAccount(ctx, userAccount); err != nil {
 			return onError(err)
 		}
-		if err = app.config.storage.SaveUser(ctx, &User{
+		if err = app.storage.SaveUser(ctx, &User{
 			Sub:            sub,
 			PrimaryAccount: userAccount.Id,
 		}); err != nil {
@@ -167,7 +164,7 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 	// TODO: Modify user account when login again
 
 	// New token
-	token, err := app.config.sm.New(ctx, userAccount.UserSub)
+	token, err := app.sm.New(ctx, userAccount.UserSub)
 	if err != nil {
 		return onError(err)
 	}
@@ -189,16 +186,16 @@ func (app *App) Refresh(ctx context.Context, req *api.RefreshRequest) (*api.Refr
 	onError := func(err error) (*api.RefreshResponse, error) {
 		return nil, errors.Wrap(err, "Account.Refresh")
 	}
-	if _, err := app.config.sm.Verify(ctx, req.GetToken()); err != nil {
+	if _, err := app.sm.Verify(ctx, req.GetToken()); err != nil {
 		return onError(err)
 	}
-	token, err := app.config.sm.Refresh(ctx, req.GetToken())
-	if err != nil{
+	token, err := app.sm.Refresh(ctx, req.GetToken())
+	if err != nil {
 		return onError(err)
 	}
 	return &api.RefreshResponse{
-		AccessToken:token.AccessToken,
-		ExpiresIn:token.ExpiresIn,
+		AccessToken: token.AccessToken,
+		ExpiresIn:   token.ExpiresIn,
 	}, nil
 }
 
@@ -207,7 +204,7 @@ func (app *App) Verify(ctx context.Context, req *api.VerifyRequest) (*api.Verify
 		return nil, errors.Wrap(err, "Account.Verify")
 	}
 
-	if sub, err := app.config.sm.Verify(ctx, req.GetToken()); err != nil {
+	if sub, err := app.sm.Verify(ctx, req.GetToken()); err != nil {
 		return onError(err)
 	} else {
 		return &api.VerifyResponse{
@@ -220,25 +217,34 @@ func (app *App) Logout(ctx context.Context, req *api.LogoutRequest) (*api.Logout
 	onError := func(err error) (*api.LogoutResponse, error) {
 		return nil, errors.Wrap(err, "App.Logout")
 	}
-	if err := app.config.sm.Clear(ctx, req.GetToken()); err != nil {
+	if err := app.sm.Clear(ctx, req.GetToken()); err != nil {
 		return onError(err)
 	}
 
 	return &api.LogoutResponse{}, nil
 }
 
-func New(config Config) api.AccountServer {
-	return &App{config: config}
+type Option struct {
+	RedirectUrl, Secret, Issuer string
+	ExpiresIn                   int64
+	RedisCli                    *redis.Client
+	Db                          *sql.DB
+	Providers                   []oauth.Option
 }
 
-func NewAccount(redirectUrl, secret, issuer string, expiresIn int64, redisCli *redis.Client, db *sql.DB, providers map[string]api.OAuthClientServer) api.AccountServer {
-	return &App{config: Config{
+func New(option Option) api.AccountServer {
+	app := &App{
 		info: Info{
-			redirectUrl: redirectUrl,
+			redirectUrl: option.RedirectUrl,
 		},
-		sm:        newRedisSessionManager(redisCli, expiresIn, secret, issuer),
-		storage:   newRdsStorage(db),
-		providers: providers,
-	}}
+		sm:        newRedisSessionManager(option.RedisCli, option.ExpiresIn, option.Secret, option.Issuer),
+		storage:   newRdsStorage(option.Db),
+		providers: map[string]api.OAuthClientServer{},
+	}
 
+	for _, provider := range option.Providers {
+		app.providers[provider.Config.ClientId] = oauth.NewOauth(provider)
+	}
+
+	return app
 }

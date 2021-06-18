@@ -9,13 +9,6 @@ import (
 	"github.com/zhangkesheng/edge-gateway/api/v1"
 )
 
-type Factory struct {
-}
-
-func NewFactory() *Factory {
-	return &Factory{}
-}
-
 func New(source Source, config Config) api.OAuthClientServer {
 	switch source {
 	case DingTalkLogin:
@@ -27,6 +20,15 @@ func New(source Source, config Config) api.OAuthClientServer {
 	default:
 		return nil
 	}
+}
+
+func NewOauth(option Option) api.OAuthClientServer {
+	return New(option.Source, option.Config)
+}
+
+type Option struct {
+	Source Source
+	Config Config
 }
 
 type Source int

@@ -77,7 +77,7 @@ func (app *App) Reload() error {
 			Password: option.RedisPwd,
 		})
 
-		edgeConfig := Config{
+		edgeConfig := Option{
 			Info: Info{
 				Name:     option.Name,
 				Desc:     option.Desc,

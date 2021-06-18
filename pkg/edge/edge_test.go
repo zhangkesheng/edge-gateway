@@ -24,7 +24,7 @@ func TestEdge(t *testing.T) {
 			Version:  "v0.0.1",
 			BasePath: "test",
 		},
-		AccountSvc: account.NewAccount(
+		AccountSvc: account.New(
 			"http;//127.0.0.1:8080",
 			"Test",
 			"Test",

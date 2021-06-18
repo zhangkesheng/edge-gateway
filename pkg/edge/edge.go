@@ -1,16 +1,13 @@
 package edge
 
 import (
-	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
-	"github.com/zhangkesheng/edge-gateway/pkg/account"
 )
 
 const (
@@ -18,51 +15,48 @@ const (
 )
 
 type Edge struct {
-	Info       Info
-	AccountSvc api.AccountServer
-}
-
-type Info struct {
 	Name     string
 	Desc     string
 	Version  string
 	BasePath string
+
+	AccountSvc api.AccountServer
 }
 
-func (e *Edge) Router(r gin.IRouter) {
+func (edge *Edge) Router(r gin.IRouter) {
 	r.GET("status", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "OK"})
 	})
 
 	// 账户体系
-	if e.AccountSvc != nil {
+	if edge.AccountSvc != nil {
 		acGroup := r.Group("account")
 		// Login page
 		acGroup.GET(loginHtml, func(c *gin.Context) {
 			ctx := c.Request.Context()
-			info, err := e.AccountSvc.Info(ctx, &empty.Empty{})
+			info, err := edge.AccountSvc.Info(ctx, &empty.Empty{})
 			if err != nil {
 				_ = c.AbortWithError(http.StatusInternalServerError, err)
 			}
 			c.HTML(http.StatusOK, loginHtml, gin.H{
-				"basePath": e.Info.BasePath,
-				"name":     e.Info.Name,
-				"desc":     e.Info.Desc,
+				"basePath": edge.BasePath,
+				"name":     edge.Name,
+				"desc":     edge.Desc,
 				"info":     info,
 			})
 		})
 		// Info api
 		acGroup.GET("", func(c *gin.Context) {
 			ctx := c.Request.Context()
-			info, err := e.AccountSvc.Info(ctx, &empty.Empty{})
+			info, err := edge.AccountSvc.Info(ctx, &empty.Empty{})
 			if err != nil {
 				_ = c.AbortWithError(http.StatusInternalServerError, err)
 				return
 			}
 			c.JSON(http.StatusOK, gin.H{
-				"basePath": e.Info.BasePath,
-				"name":     e.Info.Name,
-				"desc":     e.Info.Desc,
+				"basePath": edge.BasePath,
+				"name":     edge.Name,
+				"desc":     edge.Desc,
 				"info":     info,
 			})
 		})
@@ -76,7 +70,7 @@ func (e *Edge) Router(r gin.IRouter) {
 			}
 
 			ctx := c.Request.Context()
-			resp, err := e.AccountSvc.Logout(ctx, &api.LogoutRequest{
+			resp, err := edge.AccountSvc.Logout(ctx, &api.LogoutRequest{
 				Token: token,
 			})
 			handleJsonResp(c, err, resp)
@@ -91,7 +85,7 @@ func (e *Edge) Router(r gin.IRouter) {
 			}
 
 			ctx := c.Request.Context()
-			newToken, err := e.AccountSvc.Refresh(ctx, &api.RefreshRequest{
+			newToken, err := edge.AccountSvc.Refresh(ctx, &api.RefreshRequest{
 				Token: token,
 			})
 			handleJsonResp(c, err, newToken)
@@ -114,7 +108,7 @@ func (e *Edge) Router(r gin.IRouter) {
 			}
 
 			ctx := c.Request.Context()
-			resp, err := e.AccountSvc.Login(ctx, &api.LoginRequest{
+			resp, err := edge.AccountSvc.Login(ctx, &api.LoginRequest{
 				ResponseType: req.ResponseType,
 				ProviderKey:  clientId,
 				RedirectUrl:  req.RedirectUrl,
@@ -137,7 +131,7 @@ func (e *Edge) Router(r gin.IRouter) {
 			clientId := c.Param("clientId")
 
 			ctx := c.Request.Context()
-			resp, err := e.AccountSvc.Callback(ctx, &api.CallbackRequest{
+			resp, err := edge.AccountSvc.Callback(ctx, &api.CallbackRequest{
 				State:       c.Query("state"),
 				Code:        c.Query("code"),
 				ProviderKey: clientId,
@@ -171,25 +165,6 @@ func checkToken(c *gin.Context) (string, error) {
 	return token, nil
 }
 
-func (e *Edge) Namespace() string {
-	return e.Info.BasePath
-}
-
-type Config struct {
-	Info Info
-
-	// Account config
-	DB                 *sql.DB
-	RedisCli           *redis.Client
-	AccountRedirectUrl string
-	TokenSecret        string
-	TokenExpired       int64
-	AuthClient         map[string]api.OAuthClientServer
-}
-
-func NewEdge(config Config) Api {
-	return &Edge{
-		Info:       config.Info,
-		AccountSvc: account.NewAccount(config.AccountRedirectUrl, config.TokenSecret, config.Info.Name, config.TokenExpired, config.RedisCli, config.DB, config.AuthClient),
-	}
+func (edge *Edge) Namespace() string {
+	return edge.BasePath
 }
