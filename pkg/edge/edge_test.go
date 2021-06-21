@@ -18,21 +18,23 @@ func TestEdge(t *testing.T) {
 	mr, _ := miniredis.Run()
 
 	edge := &Edge{
-		Info: Info{
-			Name:     "Test Edge",
-			Desc:     "A test edge demo.",
-			Version:  "v0.0.1",
-			BasePath: "test",
-		},
+		Name:     "Test Edge",
+		Desc:     "A test edge demo.",
+		Version:  "v0.0.1",
+		BasePath: "test",
 		AccountSvc: account.New(
-			"http;//127.0.0.1:8080",
-			"Test",
-			"Test",
-			600,
-			redis.NewClient(&redis.Options{
-				Addr: mr.Host(),
+			account.Option{
+				Name:        "",
+				Desc:        "",
+				RedirectUrl: "http;//127.0.0.1:8080",
+				Secret:      "Test",
+				Issuer:      "Test",
+				ExpiresIn:   600,
+				RedisCli: redis.NewClient(&redis.Options{
+					Addr: mr.Host(),
+				}),
+				Db: &sql.DB{},
 			}),
-			&sql.DB{}),
 	}
 
 	router := gin.New()
