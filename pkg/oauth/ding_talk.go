@@ -96,7 +96,5 @@ func (d *DingTalkLoginService) Profile(ctx context.Context, req *api.ProfileRequ
 }
 
 func NewDingTalk(config Config) api.OAuthClientServer {
-	return &DingTalkLoginService{
-		config: config,
-	}
+	return &DingTalkLoginService{config: config}
 }

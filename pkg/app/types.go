@@ -1,4 +1,4 @@
-package edge
+package app
 
 import (
 	"net/http"

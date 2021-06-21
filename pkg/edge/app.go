@@ -8,11 +8,12 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
+	"github.com/zhangkesheng/edge-gateway/pkg/app"
 	"github.com/zhangkesheng/edge-gateway/pkg/oauth"
 )
 
 type App struct {
-	apis []Api
+	apis []app.Api
 }
 
 func New() *App {
@@ -21,7 +22,7 @@ func New() *App {
 	return app
 }
 
-func (app *App) Edges() []Api {
+func (app *App) Edges() []app.Api {
 	return app.apis
 }
 

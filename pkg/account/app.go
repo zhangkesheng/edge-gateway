@@ -4,21 +4,31 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
+	"github.com/zhangkesheng/edge-gateway/pkg/app"
 	"github.com/zhangkesheng/edge-gateway/pkg/oauth"
 	"github.com/zhangkesheng/edge-gateway/pkg/utils"
 )
 
+const (
+	loginHtml = "login.html"
+)
+
 type Info struct {
 	redirectUrl string
+	basePath    string
+	name        string
+	desc        string
 }
 
 type App struct {
@@ -224,18 +234,136 @@ func (app *App) Logout(ctx context.Context, req *api.LogoutRequest) (*api.Logout
 	return &api.LogoutResponse{}, nil
 }
 
-type Option struct {
-	RedirectUrl, Secret, Issuer string
-	ExpiresIn                   int64
-	RedisCli                    *redis.Client
-	Db                          *sql.DB
-	Providers                   []oauth.Option
+func (app *App) Router(r gin.IRouter) {
+	acGroup := r.Group("account")
+	// Login page
+	acGroup.GET(loginHtml, func(c *gin.Context) {
+		ctx := c.Request.Context()
+		info, err := app.Info(ctx, &empty.Empty{})
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+		}
+		c.HTML(http.StatusOK, loginHtml, gin.H{
+			"basePath": app.info.basePath,
+			"name":     app.info.name,
+			"desc":     app.info.desc,
+			"info":     info,
+		})
+	})
+	// Info api
+	acGroup.GET("", func(c *gin.Context) {
+		ctx := c.Request.Context()
+		info, err := app.Info(ctx, &empty.Empty{})
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"basePath": app.info.basePath,
+			"name":     app.info.name,
+			"desc":     app.info.desc,
+			"info":     info,
+		})
+	})
+
+	// Logout
+	acGroup.GET("logout", func(c *gin.Context) {
+		token, err := utils.CheckToken(c)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusUnauthorized, err)
+			return
+		}
+
+		ctx := c.Request.Context()
+		resp, err := app.Logout(ctx, &api.LogoutRequest{
+			Token: token,
+		})
+		utils.HandleJsonResp(c, err, resp)
+	})
+
+	// Refresh token
+	acGroup.POST("refresh", func(c *gin.Context) {
+		token, err := utils.CheckToken(c)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusUnauthorized, err)
+			return
+		}
+
+		ctx := c.Request.Context()
+		newToken, err := app.Refresh(ctx, &api.RefreshRequest{
+			Token: token,
+		})
+		utils.HandleJsonResp(c, err, newToken)
+	})
+
+	// Account auth client api
+	acCliGroup := acGroup.Group("/client/:clientId")
+	acCliGroup.GET("authorize", func(c *gin.Context) {
+		clientId := c.Param("clientId")
+		var req struct {
+			State        string `form:"state"`
+			RedirectUrl  string `form:"redirectUrl"`
+			Redirect     bool   `form:"redirect"`
+			ResponseType string `form:"responseType"`
+			Scope        string `form:"scope"`
+		}
+		if err := c.BindQuery(&req); err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		ctx := c.Request.Context()
+		resp, err := app.Login(ctx, &api.LoginRequest{
+			ResponseType: req.ResponseType,
+			ProviderKey:  clientId,
+			RedirectUrl:  req.RedirectUrl,
+			Scope:        req.Scope,
+			State:        req.State,
+		})
+
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
+		}
+
+		if req.Redirect {
+			c.Redirect(http.StatusSeeOther, resp.GetRedirectTo())
+		}
+
+		utils.HandleJsonResp(c, err, resp)
+	})
+
+	acCliGroup.GET("callback", func(c *gin.Context) {
+		clientId := c.Param("clientId")
+
+		ctx := c.Request.Context()
+		resp, err := app.Callback(ctx, &api.CallbackRequest{
+			State:       c.Query("state"),
+			Code:        c.Query("code"),
+			ProviderKey: clientId,
+		})
+
+		utils.HandleJsonResp(c, err, resp)
+	})
+
+}
+func (app *App) Namespace() string {
+	return "account"
 }
 
-func New(option Option) api.AccountServer {
-	app := &App{
+type Option struct {
+	Name, Desc, RedirectUrl, Secret, Issuer string
+	ExpiresIn                               int64
+	RedisCli                                *redis.Client
+	Db                                      *sql.DB
+	Providers                               []oauth.Option
+}
+
+func New(option Option) app.Api {
+	accountSvc := &App{
 		info: Info{
 			redirectUrl: option.RedirectUrl,
+			name:        option.Name,
+			desc:        option.Desc,
 		},
 		sm:        newRedisSessionManager(option.RedisCli, option.ExpiresIn, option.Secret, option.Issuer),
 		storage:   newRdsStorage(option.Db),
@@ -243,8 +371,8 @@ func New(option Option) api.AccountServer {
 	}
 
 	for _, provider := range option.Providers {
-		app.providers[provider.Config.ClientId] = oauth.NewOauth(provider)
+		accountSvc.providers[provider.Config.ClientId] = oauth.NewOauth(provider)
 	}
 
-	return app
+	return accountSvc
 }
