@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhangkesheng/edge-gateway/pkg/app"
+	"github.com/zhangkesheng/edge-gateway/pkg/types"
 )
 
 func CheckToken(c *gin.Context) (string, error) {
@@ -27,5 +27,5 @@ func HandleJsonResp(c *gin.Context, err error, resp interface{}) {
 		return
 	}
 
-	c.JSON(http.StatusOK, app.Success(resp))
+	c.JSON(http.StatusOK, types.Success(resp))
 }

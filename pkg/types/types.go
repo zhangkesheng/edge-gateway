@@ -1,4 +1,4 @@
-package app
+package types
 
 import (
 	"net/http"
@@ -7,8 +7,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type Api interface {
-	Router(r gin.IRouter)
+type ApiRoute interface {
+	Router(r gin.IRouter) error
 	Namespace() string
 }
 

@@ -10,16 +10,18 @@ import (
 )
 
 type App struct {
-	Router   http.Handler
+	router   http.Handler
 	stop     context.CancelFunc
 	instance edge.App
 }
 
-func New() *App {
+func New() (*App, error) {
 	app := &App{
 	}
-	app.reload()
-	return app
+	if err := app.reload(); err != nil {
+		return nil, err
+	}
+	return app, nil
 }
 
 func (app *App) Server() {
@@ -30,7 +32,7 @@ func (app *App) Server() {
 
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: app.Router,
+		Handler: app.router,
 	}
 
 	// Initializing the server in a goroutine so that
@@ -50,7 +52,7 @@ func (app *App) Server() {
 	app.Server()
 }
 
-func (app *App) reload() {
+func (app *App) reload() error {
 	router := gin.New()
 
 	router.LoadHTMLGlob("D:/code/mbxc/go/src/edge-gateway-github/web/*")
@@ -60,15 +62,25 @@ func (app *App) reload() {
 	})
 
 	router.GET("reload", func(c *gin.Context) {
-		app.reload()
+		err := app.reload()
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"reload": true})
 		app.stop()
 	})
 
-	edges := app.instance.Edges()
-	for _, edge := range edges {
-		edge.Router(router.Group(edge.Namespace()))
+	edges, err := app.instance.Edges()
+	if err != nil {
+		return err
+	}
+	for _, route := range edges {
+		if err := route.Router(router.Group(route.Namespace())); err != nil {
+			return err
+		}
 	}
 
-	app.Router = router
+	app.router = router
+	return nil
 }

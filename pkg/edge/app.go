@@ -2,48 +2,51 @@ package edge
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/go-redis/redis"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"github.com/zhangkesheng/edge-gateway/api/v1"
-	"github.com/zhangkesheng/edge-gateway/pkg/app"
+	"github.com/zhangkesheng/edge-gateway/pkg/account"
+	"github.com/zhangkesheng/edge-gateway/pkg/backend"
 	"github.com/zhangkesheng/edge-gateway/pkg/oauth"
+	"github.com/zhangkesheng/edge-gateway/pkg/types"
 )
 
 type App struct {
-	apis []app.Api
+	options []Option
+	apis    []types.ApiRoute
 }
 
-func New() *App {
-	app := &App{}
-	app.Reload()
-	return app
+func New(options []Option) (*App, error) {
+	app := &App{
+		options: options,
+	}
+	if err := app.Reload(); err != nil {
+		return nil, errors.Wrap(err, "New edge")
+	}
+	return app, nil
 }
 
-func (app *App) Edges() []app.Api {
-	return app.apis
+func (app *App) Edges() ([]types.ApiRoute, error) {
+	if err := app.Reload(); err != nil {
+		return nil, errors.Wrap(err, "Gey edges")
+	}
+	return app.apis, nil
 }
 
-type Options struct {
+type Option struct {
 	Name        string
 	Desc        string
 	Version     string
 	BasePath    string
-	DbHost      string
-	DbPort      string
-	DbUser      string
-	DbPws       string
-	DbDatabase  string
-	RedisHost   string
-	RedisPort   string
-	RedisPwd    string
 	TokenSecret string
 	// ms
 	TokenExpired       int64
 	AccountRedirectUrl string
+	Db                 *sql.DB
+	RedisCli           *redis.Client
 	AuthCli            []AuthOption
+	Backends           []BackendOption
 }
 type AuthOption struct {
 	Type            oauth.Source
@@ -57,55 +60,62 @@ type AuthOption struct {
 	DefaultScope    string
 }
 
+// TODO: use open-api
+type BackendOption struct {
+	BathPath string
+	Host     string
+	Apis     []string
+}
+
 func (app *App) Reload() error {
-	onError := func(err error) error {
-		return errors.Wrap(err, "Edge reload")
-	}
+	// onError := func(err error) error {
+	// 	return errors.Wrap(err, "Edge reload")
+	// }
 	// TODO read config from file. like: yaml or json or db.
-	var options []Options
 
-	for _, option := range options {
+	for _, option := range app.options {
 		// TODO check option
-		// TODO 支持其他的存储方式
-		mu := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", option.DbUser, option.DbPws, option.DbHost, option.DbPort, option.DbDatabase)
-		db, err := sql.Open("mysql", mu)
-		if err != nil {
-			return onError(err)
-		}
-
-		redisCli := redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%s", option.RedisHost, option.RedisPort),
-			Password: option.RedisPwd,
-		})
-
-		edgeConfig := Option{
-			Info: Info{
-				Name:     option.Name,
-				Desc:     option.Desc,
-				Version:  option.Version,
-				BasePath: option.BasePath,
-			},
-			DB:                 db,
-			RedisCli:           redisCli,
-			AccountRedirectUrl: option.AccountRedirectUrl,
-			TokenSecret:        option.TokenSecret,
-			TokenExpired:       option.TokenExpired,
-			AuthClient:         map[string]api.OAuthClientServer{},
-		}
-
+		var accountProviders []oauth.Option
 		for _, cli := range option.AuthCli {
-			edgeConfig.AuthClient[cli.ClientId] = oauth.New(cli.Type, oauth.Config{
-				ClientId:        cli.ClientId,
-				Secret:          cli.Secret,
-				AuthUrl:         cli.AuthUrl,
-				LogoutUrl:       cli.LogoutUrl,
-				AccessTokenUrl:  cli.AccessTokenUrl,
-				ApiUrl:          cli.ApiUrl,
-				DefaultRedirect: cli.DefaultRedirect,
-				DefaultScope:    cli.DefaultScope,
+			accountProviders = append(accountProviders, oauth.Option{
+				Source: cli.Type,
+				Config: oauth.Config{
+					ClientId:        cli.ClientId,
+					Secret:          cli.Secret,
+					AuthUrl:         cli.AuthUrl,
+					LogoutUrl:       cli.LogoutUrl,
+					AccessTokenUrl:  cli.AccessTokenUrl,
+					ApiUrl:          cli.ApiUrl,
+					DefaultRedirect: cli.DefaultRedirect,
+					DefaultScope:    cli.DefaultScope,
+				},
 			})
 		}
-		app.apis = append(app.apis, NewEdge(edgeConfig))
+
+		accountSvc := account.New(account.Option{
+			Name:        option.Name,
+			Desc:        option.Desc,
+			RedirectUrl: option.AccountRedirectUrl,
+			Secret:      option.TokenSecret,
+			Issuer:      option.Name,
+			ExpiresIn:   option.TokenExpired,
+			RedisCli:    option.RedisCli,
+			Db:          option.Db,
+			Providers:   accountProviders,
+		})
+
+		backendMap := map[string]types.ApiRoute{}
+		for _, b := range option.Backends {
+			backendMap[b.BathPath] = backend.NewReverseProxy(b.Host, b.Apis)
+		}
+
+		app.apis = append(app.apis, &Edge{
+			Name:       option.Name,
+			Desc:       option.Desc,
+			Version:    option.Version,
+			BasePath:   option.BasePath,
+			AccountSvc: accountSvc,
+		})
 	}
 
 	return nil

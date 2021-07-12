@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
-	"github.com/zhangkesheng/edge-gateway/pkg/app"
+	"github.com/zhangkesheng/edge-gateway/pkg/types"
 	"github.com/zhangkesheng/edge-gateway/pkg/oauth"
 	"github.com/zhangkesheng/edge-gateway/pkg/utils"
 )
@@ -234,7 +234,7 @@ func (app *App) Logout(ctx context.Context, req *api.LogoutRequest) (*api.Logout
 	return &api.LogoutResponse{}, nil
 }
 
-func (app *App) Router(r gin.IRouter) {
+func (app *App) Router(r gin.IRouter) error {
 	acGroup := r.Group("account")
 	// Login page
 	acGroup.GET(loginHtml, func(c *gin.Context) {
@@ -345,6 +345,7 @@ func (app *App) Router(r gin.IRouter) {
 		utils.HandleJsonResp(c, err, resp)
 	})
 
+	return nil
 }
 func (app *App) Namespace() string {
 	return "account"
@@ -358,7 +359,7 @@ type Option struct {
 	Providers                               []oauth.Option
 }
 
-func New(option Option) app.Api {
+func New(option Option) types.ApiRoute {
 	accountSvc := &App{
 		info: Info{
 			redirectUrl: option.RedirectUrl,
