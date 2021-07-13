@@ -18,13 +18,13 @@ import (
 )
 
 type DingTalkLoginService struct {
-	config Config
+	config config
 }
 
 func (d *DingTalkLoginService) Auth(ctx context.Context, req *api.AuthRequest) (*api.AuthResponse, error) {
 	params := url.Values{
 		"response_type": {"code"},
-		"appid":         {d.config.ClientId},
+		"appid":         {d.config.clientId},
 		"scope":         {"snsapi_login"},
 		"state":         {req.GetState()},
 	}
@@ -32,11 +32,11 @@ func (d *DingTalkLoginService) Auth(ctx context.Context, req *api.AuthRequest) (
 	if len(strings.TrimSpace(req.GetRedirectUrl())) > 0 {
 		params.Add("redirect_uri", req.GetRedirectUrl())
 	} else {
-		params.Add("redirect_uri", d.config.DefaultRedirect)
+		params.Add("redirect_uri", d.config.defaultRedirect)
 	}
 
 	return &api.AuthResponse{
-		RedirectTo: fmt.Sprintf("%s?%s", d.config.AuthUrl, params.Encode()),
+		RedirectTo: fmt.Sprintf("%s?%s", d.config.authUrl, params.Encode()),
 	}, nil
 }
 
@@ -46,12 +46,12 @@ func (d *DingTalkLoginService) AccessToken(ctx context.Context, req *api.AccessT
 	}
 
 	timestamp := strconv.FormatInt(time.Now().Unix()*1000, 10)
-	signature := utils.HmacSha256Sign(d.config.Secret, timestamp)
+	signature := utils.HmacSha256Sign(d.config.secret, timestamp)
 
 	params := url.Values{}
 	params.Add("signature", signature)
 	params.Add("timestamp", timestamp)
-	params.Add("accessKey", d.config.ClientId)
+	params.Add("accessKey", d.config.clientId)
 
 	reqBody := map[string]string{
 		"tmp_auth_code": req.GetCode(),
@@ -62,7 +62,7 @@ func (d *DingTalkLoginService) AccessToken(ctx context.Context, req *api.AccessT
 		return onError(err)
 	}
 
-	tokenReq, err := http.NewRequest("POST", fmt.Sprintf("%s?%s", d.config.AccessTokenUrl, params.Encode()), bytes.NewReader(b))
+	tokenReq, err := http.NewRequest("POST", fmt.Sprintf("%s?%s", d.config.accessTokenUrl, params.Encode()), bytes.NewReader(b))
 	if err != nil {
 		return onError(err)
 	}
@@ -95,6 +95,6 @@ func (d *DingTalkLoginService) Profile(ctx context.Context, req *api.ProfileRequ
 	return nil, nil
 }
 
-func NewDingTalk(config Config) api.OAuthClientServer {
+func NewDingTalk(config config) api.OAuthClientServer {
 	return &DingTalkLoginService{config: config}
 }

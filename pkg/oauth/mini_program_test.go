@@ -28,10 +28,10 @@ func TestNewMiniProgram(t *testing.T) {
 
 	defer ts.Close()
 
-	config := Config{
-		ClientId:       "test",
-		Secret:         "test",
-		AccessTokenUrl: ts.URL + "/sns/jscode2session",
+	config := config{
+		clientId:       "test",
+		secret:         "test",
+		accessTokenUrl: ts.URL + "/sns/jscode2session",
 	}
 	cli := New(MiniProgram, config)
 

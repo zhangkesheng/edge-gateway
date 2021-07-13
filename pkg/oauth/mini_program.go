@@ -11,7 +11,7 @@ import (
 )
 
 type MiniProgramService struct {
-	config Config
+	config config
 }
 
 type code2SessionResp struct {
@@ -35,9 +35,9 @@ func (srv *MiniProgramService) AccessToken(ctx context.Context, req *api.AccessT
 		"GET",
 		fmt.Sprintf(
 			"%s/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
-			srv.config.AccessTokenUrl,
-			srv.config.ClientId,
-			srv.config.Secret,
+			srv.config.accessTokenUrl,
+			srv.config.clientId,
+			srv.config.secret,
 			req.GetCode(),
 		),
 		nil,
@@ -74,6 +74,6 @@ func (srv *MiniProgramService) Profile(ctx context.Context, req *api.ProfileRequ
 	return &api.ProfileResponse{}, nil
 }
 
-func NewMiniProgram(config Config) api.OAuthClientServer {
+func NewMiniProgram(config config) api.OAuthClientServer {
 	return &MiniProgramService{config: config}
 }

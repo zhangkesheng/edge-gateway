@@ -33,15 +33,15 @@ func TestDingTalk(t *testing.T) {
 
 	defer ts.Close()
 
-	config := Config{
-		ClientId:        "test",
-		Secret:          "test",
-		AuthUrl:         "https://oapi.dingtalk.com/connect/qrconnect",
-		LogoutUrl:       "",
-		AccessTokenUrl:  ts.URL + "/sns/getuserinfo_bycode",
-		ApiUrl:          "",
-		DefaultRedirect: "https://www.bestzks.com",
-		DefaultScope:    "",
+	config := config{
+		clientId:        "test",
+		secret:          "test",
+		authUrl:         "https://oapi.dingtalk.com/connect/qrconnect",
+		logoutUrl:       "",
+		accessTokenUrl:  ts.URL + "/sns/getuserinfo_bycode",
+		apiUrl:          "",
+		defaultRedirect: "https://www.bestzks.com",
+		defaultScope:    "",
 	}
 	cli := New(DingTalkLogin, config)
 

@@ -31,15 +31,15 @@ func TestGithub(t *testing.T) {
 
 	defer ts.Close()
 
-	config := Config{
-		ClientId:        "test",
-		Secret:          "test",
-		AuthUrl:         "https://github.com/login/oauth/authorize",
-		LogoutUrl:       "",
-		AccessTokenUrl:  ts.URL + "/login/oauth/access_token",
-		ApiUrl:          ts.URL + "/user",
-		DefaultRedirect: "https://www.bestzks.com",
-		DefaultScope:    "",
+	config := config{
+		clientId:        "test",
+		secret:          "test",
+		authUrl:         "https://github.com/login/oauth/authorize",
+		logoutUrl:       "",
+		accessTokenUrl:  ts.URL + "/login/oauth/access_token",
+		apiUrl:          ts.URL + "/user",
+		defaultRedirect: "https://www.bestzks.com",
+		defaultScope:    "",
 	}
 	cli := New(GitHub, config)
 

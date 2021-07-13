@@ -372,7 +372,7 @@ func New(option Option) types.ApiRoute {
 	}
 
 	for _, provider := range option.Providers {
-		accountSvc.providers[provider.Config.ClientId] = oauth.NewOauth(provider)
+		accountSvc.providers[provider.ClientId] = oauth.NewOauth(provider)
 	}
 
 	return accountSvc

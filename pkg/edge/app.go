@@ -27,11 +27,8 @@ func New(options []Option) (*App, error) {
 	return app, nil
 }
 
-func (app *App) Edges() ([]types.ApiRoute, error) {
-	if err := app.Reload(); err != nil {
-		return nil, errors.Wrap(err, "Gey edges")
-	}
-	return app.apis, nil
+func (app *App) Edges() []types.ApiRoute {
+	return app.apis
 }
 
 type Option struct {
@@ -45,19 +42,8 @@ type Option struct {
 	AccountRedirectUrl string
 	Db                 *sql.DB
 	RedisCli           *redis.Client
-	AuthCli            []AuthOption
+	AuthCli            []oauth.Option
 	Backends           []BackendOption
-}
-type AuthOption struct {
-	Type            oauth.Source
-	ClientId        string
-	Secret          string
-	AuthUrl         string
-	LogoutUrl       string
-	AccessTokenUrl  string
-	ApiUrl          string
-	DefaultRedirect string
-	DefaultScope    string
 }
 
 // TODO: use open-api
@@ -73,22 +59,17 @@ func (app *App) Reload() error {
 	// }
 	// TODO read config from file. like: yaml or json or db.
 
+	app.apis = []types.ApiRoute{}
+
 	for _, option := range app.options {
 		// TODO check option
 		var accountProviders []oauth.Option
 		for _, cli := range option.AuthCli {
 			accountProviders = append(accountProviders, oauth.Option{
-				Source: cli.Type,
-				Config: oauth.Config{
-					ClientId:        cli.ClientId,
-					Secret:          cli.Secret,
-					AuthUrl:         cli.AuthUrl,
-					LogoutUrl:       cli.LogoutUrl,
-					AccessTokenUrl:  cli.AccessTokenUrl,
-					ApiUrl:          cli.ApiUrl,
-					DefaultRedirect: cli.DefaultRedirect,
-					DefaultScope:    cli.DefaultScope,
-				},
+				Source:          cli.Source,
+				ClientId:        cli.ClientId,
+				Secret:          cli.Secret,
+				DefaultRedirect: cli.DefaultRedirect,
 			})
 		}
 
