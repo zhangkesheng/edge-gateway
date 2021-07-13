@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zhangkesheng/edge-gateway/pkg/edge"
 	"github.com/zhangkesheng/edge-gateway/pkg/oauth"
+	"github.com/zhangkesheng/edge-gateway/pkg/types"
 )
 
 type App struct {
@@ -56,9 +57,9 @@ func getOptions() []edge.Option {
 			},
 			Backends: []edge.BackendOption{
 				{
-					BathPath: "test",
-					Host:     "127.0.0.1:80",
-					Apis:     []string{},
+					BathPath: "",
+					Host:     "http://127.0.0.1:8888",
+					Apis:     []string{"api/leetcode/user/info"},
 				},
 			},
 		},
@@ -120,7 +121,7 @@ func (app *App) reload() error {
 	router.GET("reload", func(c *gin.Context) {
 		err := app.reload()
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, err)
+			types.CtxError(c, http.StatusInternalServerError, err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"reload": true})
@@ -134,6 +135,9 @@ func (app *App) reload() error {
 		}
 	}
 
+	router.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{"status": "Not Found"})
+	})
 	app.router = router
 	return nil
 }

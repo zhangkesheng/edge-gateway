@@ -250,7 +250,7 @@ func (app *App) Router(r gin.IRouter) error {
 		ctx := c.Request.Context()
 		info, err := app.Info(ctx, &empty.Empty{})
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			types.CtxError(c, http.StatusInternalServerError, err)
 		}
 		c.HTML(http.StatusOK, loginHtml, gin.H{
 			"basePath": app.info.basePath,
@@ -264,7 +264,7 @@ func (app *App) Router(r gin.IRouter) error {
 		ctx := c.Request.Context()
 		info, err := app.Info(ctx, &empty.Empty{})
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			types.CtxError(c, http.StatusInternalServerError, err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
@@ -279,7 +279,7 @@ func (app *App) Router(r gin.IRouter) error {
 	r.GET("logout", func(c *gin.Context) {
 		token, err := utils.CheckToken(c)
 		if err != nil {
-			_ = c.AbortWithError(http.StatusUnauthorized, err)
+			types.CtxError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -294,7 +294,7 @@ func (app *App) Router(r gin.IRouter) error {
 	r.POST("refresh", func(c *gin.Context) {
 		token, err := utils.CheckToken(c)
 		if err != nil {
-			_ = c.AbortWithError(http.StatusUnauthorized, err)
+			types.CtxError(c, http.StatusUnauthorized, err)
 			return
 		}
 
@@ -317,7 +317,7 @@ func (app *App) Router(r gin.IRouter) error {
 			Scope        string `form:"scope"`
 		}
 		if err := c.BindQuery(&req); err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			types.CtxError(c, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -331,7 +331,7 @@ func (app *App) Router(r gin.IRouter) error {
 		})
 
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
+			types.CtxError(c, http.StatusInternalServerError, err)
 		}
 
 		if req.Redirect {
@@ -367,7 +367,7 @@ type Option struct {
 	Providers                                         []oauth.Option
 }
 
-func New(option Option) types.ApiRoute {
+func New(option Option) types.AccountRouter {
 	accountSvc := &App{
 		info: Info{
 			redirectUrl: option.RedirectUrl,

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/zhangkesheng/edge-gateway/pkg/intercepter"
 	"github.com/zhangkesheng/edge-gateway/pkg/types"
 )
 
@@ -15,14 +16,16 @@ type Edge struct {
 	BasePath string
 
 	// 账户体系
-	AccountSvc types.ApiRoute
+	AccountSvc types.AccountRouter
 
 	// 后端服务
-	BackendSvc map[string]types.ApiRoute
+	BackendSvc []Backend
 }
 
 type Backend struct {
-	Host string
+	BasePath string
+	IsPublic bool
+	Cli      types.ApiRoute
 }
 
 func (edge *Edge) Router(r gin.IRouter) error {
@@ -47,12 +50,17 @@ func (edge *Edge) Router(r gin.IRouter) error {
 	// ...
 	// 先直接透传
 	if edge.BackendSvc != nil {
-		for bastPath, route := range edge.BackendSvc {
-			if err := route.Router(r.Group(bastPath)); err != nil {
+		for _, b := range edge.BackendSvc {
+			subRouter := r.Group(b.BasePath)
+			if !b.IsPublic && edge.AccountSvc != nil {
+				subRouter.Use(intercepter.Authorize(edge.AccountSvc))
+			}
+			if err := b.Cli.Router(subRouter); err != nil {
 				return onError(err)
 			}
 		}
 	}
+
 	return nil
 }
 

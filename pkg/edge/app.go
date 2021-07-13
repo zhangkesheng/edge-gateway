@@ -50,6 +50,7 @@ type Option struct {
 type BackendOption struct {
 	BathPath string
 	Host     string
+	IsPublic bool
 	Apis     []string
 }
 
@@ -86,9 +87,13 @@ func (app *App) Reload() error {
 			Providers:   accountProviders,
 		})
 
-		backendMap := map[string]types.ApiRoute{}
+		var backends []Backend
 		for _, b := range option.Backends {
-			backendMap[b.BathPath] = backend.NewReverseProxy(b.Host, b.Apis)
+			backends = append(backends, Backend{
+				BasePath: b.BathPath,
+				IsPublic: false,
+				Cli:      backend.NewReverseProxy(b.Host, b.Apis, option.BasePath, map[string]string{}),
+			})
 		}
 
 		app.apis = append(app.apis, &Edge{
@@ -97,6 +102,7 @@ func (app *App) Reload() error {
 			Version:    option.Version,
 			BasePath:   option.BasePath,
 			AccountSvc: accountSvc,
+			BackendSvc: backends,
 		})
 	}
 

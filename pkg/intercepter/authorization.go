@@ -7,21 +7,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
+	"github.com/zhangkesheng/edge-gateway/pkg/types"
 )
 
 func Authorize(account api.AccountServer) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := GetToken(c)
 		if token == "" {
-			_ = c.AbortWithError(http.StatusUnauthorized, errors.New("Not authorize "))
+			types.CtxError(c, http.StatusUnauthorized, errors.New("Not authorize "))
 			return
 		}
-		
+
 		ctx := c.Request.Context()
 		if resp, err := account.Verify(ctx, &api.VerifyRequest{
 			Token: token,
 		}); err != nil {
-			_ = c.AbortWithError(http.StatusForbidden, err)
+			types.CtxError(c, http.StatusForbidden, err)
 			return
 		} else {
 			c.Set("x-user-sub", resp.GetSub())
