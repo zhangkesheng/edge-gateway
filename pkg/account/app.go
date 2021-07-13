@@ -110,6 +110,7 @@ func (app *App) Callback(ctx context.Context, req *api.CallbackRequest) (*api.Ca
 
 	return &api.CallbackResponse{
 		RedirectUrl: redirect.String(),
+		AccessToken: token.GetAccessToken(),
 	}, nil
 }
 

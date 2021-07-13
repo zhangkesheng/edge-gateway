@@ -32,7 +32,7 @@ type UserAccount struct {
 	ExpiredAt    int64
 	Raw          interface{}
 	CreatedAt    time.Time
-	ModifiedAt   time.Time
+	ModifiedAt   *time.Time
 }
 
 const (
@@ -102,7 +102,7 @@ func (r *RdsStorage) GetUserAccount(ctx context.Context, source, openid string) 
 	var account UserAccount
 	if err = r.db.QueryRowContext(ctx, query, args...).
 		Scan(&account.Id, &account.UserSub, &account.OpenId, &account.UnionId, &account.Nick, &account.Source, &account.Avatar,
-			&account.Email, &account.AccessToken, account.Scope, &account.RefreshToken, &account.ExpiredAt, &account.Raw, &account.CreatedAt, &account.ModifiedAt);
+			&account.Email, &account.AccessToken, &account.Scope, &account.RefreshToken, &account.ExpiredAt, &account.Raw, &account.CreatedAt, &account.ModifiedAt);
 		err != nil {
 		return onError(err)
 	}
