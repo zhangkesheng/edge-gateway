@@ -72,7 +72,7 @@ func (r *RdsStorage) SaveUserAccount(ctx context.Context, account *UserAccount) 
 	}
 
 	builder := sq.Replace(userAccountTable).Columns(userAccountCols...).
-		Values(nil, account.UserSub, account.OpenId, account.UnionId, account.Nick, account.Source, account.Avatar, account.Email, account.AccessToken, account.RefreshToken, account.ExpiredAt, account.Raw, nil, nil)
+		Values(nil, account.UserSub, account.OpenId, account.UnionId, account.Nick, account.Source, account.Avatar, account.Email, account.AccessToken, account.Scope, account.RefreshToken, account.ExpiredAt, account.Raw, nil, nil)
 	query, args, err := builder.ToSql()
 	if err != nil {
 		return onError(err)
@@ -102,7 +102,7 @@ func (r *RdsStorage) GetUserAccount(ctx context.Context, source, openid string) 
 	var account UserAccount
 	if err = r.db.QueryRowContext(ctx, query, args...).
 		Scan(&account.Id, &account.UserSub, &account.OpenId, &account.UnionId, &account.Nick, &account.Source, &account.Avatar,
-			&account.Email, &account.AccessToken, &account.RefreshToken, &account.ExpiredAt, &account.Raw, &account.CreatedAt, &account.ModifiedAt);
+			&account.Email, &account.AccessToken, account.Scope, &account.RefreshToken, &account.ExpiredAt, &account.Raw, &account.CreatedAt, &account.ModifiedAt);
 		err != nil {
 		return onError(err)
 	}
@@ -118,4 +118,33 @@ type Storage interface {
 	SaveUser(ctx context.Context, user *User) error
 	SaveUserAccount(ctx context.Context, account *UserAccount) error
 	GetUserAccount(ctx context.Context, source, openid string) (*UserAccount, error)
+}
+
+type mockStorage struct {
+	userAccount map[string]map[string]*UserAccount
+	user        map[string]*User
+}
+
+func (s *mockStorage) SaveUser(ctx context.Context, user *User) error {
+	s.user[user.Sub] = user
+	return nil
+}
+
+func (s *mockStorage) SaveUserAccount(ctx context.Context, account *UserAccount) error {
+	if _, ok := s.userAccount[account.Source]; !ok {
+		s.userAccount[account.Source] = map[string]*UserAccount{}
+	}
+	s.userAccount[account.Source][account.OpenId] = account
+	return nil
+}
+
+func (s *mockStorage) GetUserAccount(ctx context.Context, source, openid string) (*UserAccount, error) {
+	return s.userAccount[source][openid], nil
+}
+
+func newMockStorage() Storage {
+	return &mockStorage{
+		userAccount: make(map[string]map[string]*UserAccount),
+		user:        make(map[string]*User),
+	}
 }

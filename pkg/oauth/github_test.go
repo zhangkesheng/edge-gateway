@@ -41,7 +41,7 @@ func TestGithub(t *testing.T) {
 		defaultRedirect: "https://www.bestzks.com",
 		defaultScope:    "",
 	}
-	cli := New(GitHub, config)
+	cli := NewOauthCli(GitHub, config)
 
 	ctx := context.Background()
 	t.Run("Auth url", func(t *testing.T) {

@@ -33,7 +33,7 @@ func TestNewMiniProgram(t *testing.T) {
 		secret:         "test",
 		accessTokenUrl: ts.URL + "/sns/jscode2session",
 	}
-	cli := New(MiniProgram, config)
+	cli := NewOauthCli(MiniProgram, config)
 
 	ctx := context.Background()
 

@@ -23,7 +23,7 @@ func CheckToken(c *gin.Context) (string, error) {
 
 func HandleJsonResp(c *gin.Context, err error, resp interface{}) {
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		c.JSON(http.StatusInternalServerError, types.InternalErr(err))
 		return
 	}
 

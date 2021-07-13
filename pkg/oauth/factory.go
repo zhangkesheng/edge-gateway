@@ -9,7 +9,7 @@ import (
 	"github.com/zhangkesheng/edge-gateway/api/v1"
 )
 
-func New(source Source, config config) api.OAuthClientServer {
+func NewOauthCli(source Source, config config) api.OAuthClientServer {
 	switch source {
 	case DingTalkLogin:
 		config.authUrl = "https://oapi.dingtalk.com/connect/qrconnect"
@@ -27,8 +27,8 @@ func New(source Source, config config) api.OAuthClientServer {
 	}
 }
 
-func NewOauth(option Option) api.OAuthClientServer {
-	return New(option.Source, config{
+func New(option Option) api.OAuthClientServer {
+	return NewOauthCli(option.Source, config{
 		clientId:        option.ClientId,
 		secret:          option.Secret,
 		defaultRedirect: option.DefaultRedirect,
@@ -42,22 +42,23 @@ type Option struct {
 	DefaultRedirect string
 }
 
-type Source int
+type Source string
 
 const (
-	UnKnown Source = iota
+	UnKnown Source = "unknown"
 
 	// 需要自己实现的部分
 	MobileVerify
 	UserNamePwd
 
 	// 第三方服务
-	DingTalkLogin
-	GitHub
-	MiniProgram
+	DingTalkLogin = "dingTalk"
+	GitHub        = "github"
+	MiniProgram   = "miniProgram"
 )
 
 type config struct {
+	source          string
 	clientId        string
 	secret          string
 	authUrl         string

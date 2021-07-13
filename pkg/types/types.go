@@ -30,6 +30,6 @@ func InternalErr(err error) *ResultWrapper {
 	return &ResultWrapper{
 		Code:    http.StatusInternalServerError,
 		Message: "ERROR",
-		Data:    err,
+		Data:    err.Error(),
 	}
 }

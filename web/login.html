@@ -65,6 +65,8 @@
       line-height: 2em;
       cursor: pointer;
       margin: 0 8px;
+      text-decoration: none;
+      color: #00000073;
     }
 
     .login .iconfont {
@@ -86,12 +88,12 @@
         <div class="desc">{{.desc}}</div>
       </div>
       <div class="clients">
-          {{range .info.Providers}}
-            <a onclick="window.location.href='{{$.basePath}}/account/client/{{.key}}/login?redirect=true'">
-                {{if eq .type "dingtalk"}}
+          {{ range .info.Providers}}
+            <a href="client/{{.Key}}/authorize?redirect=true">
+                {{if eq .Type "dingTalk"}}
                   <i class="iconfont icon-dingtalk-circle"></i>
                   <div class="tip">钉钉</div>
-                {{else if eq .type "github"}}
+                {{else if eq .Type "github"}}
                   <i class="iconfont icon-github"></i>
                   <div class="tip">Github</div>
                 {{end}}

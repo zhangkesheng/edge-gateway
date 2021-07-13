@@ -43,7 +43,7 @@ func TestDingTalk(t *testing.T) {
 		defaultRedirect: "https://www.bestzks.com",
 		defaultScope:    "",
 	}
-	cli := New(DingTalkLogin, config)
+	cli := NewOauthCli(DingTalkLogin, config)
 
 	ctx := context.Background()
 	t.Run("Auth", func(t *testing.T) {

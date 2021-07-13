@@ -22,7 +22,7 @@ func New(options []Option) (*App, error) {
 		options: options,
 	}
 	if err := app.Reload(); err != nil {
-		return nil, errors.Wrap(err, "New edge")
+		return nil, errors.Wrap(err, "NewOauthCli edge")
 	}
 	return app, nil
 }
@@ -79,6 +79,7 @@ func (app *App) Reload() error {
 			RedirectUrl: option.AccountRedirectUrl,
 			Secret:      option.TokenSecret,
 			Issuer:      option.Name,
+			BasePath:    option.BasePath,
 			ExpiresIn:   option.TokenExpired,
 			RedisCli:    option.RedisCli,
 			Db:          option.Db,

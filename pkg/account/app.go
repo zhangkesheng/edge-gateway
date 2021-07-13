@@ -15,8 +15,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/zhangkesheng/edge-gateway/api/v1"
-	"github.com/zhangkesheng/edge-gateway/pkg/types"
 	"github.com/zhangkesheng/edge-gateway/pkg/oauth"
+	"github.com/zhangkesheng/edge-gateway/pkg/types"
 	"github.com/zhangkesheng/edge-gateway/pkg/utils"
 )
 
@@ -31,19 +31,24 @@ type Info struct {
 	desc        string
 }
 
+type oauthCli struct {
+	source string
+	cli    api.OAuthClientServer
+}
+
 type App struct {
 	info      Info
 	sm        SessionManager
 	storage   Storage
-	providers map[string]api.OAuthClientServer
+	providers map[string]*oauthCli
 }
 
 func (app *App) Info(ctx context.Context, req *empty.Empty) (*api.InfoResponse, error) {
 	var providers []*api.InfoResponse_Provider
-	for v, _ := range app.providers {
+	for k, v := range app.providers {
 		providers = append(providers, &api.InfoResponse_Provider{
-			Type: v,
-			Key:  v,
+			Type: v.source,
+			Key:  k,
 		})
 	}
 	return &api.InfoResponse{
@@ -68,7 +73,7 @@ func (app *App) Login(ctx context.Context, req *api.LoginRequest) (*api.LoginRes
 		State:        req.GetState(),
 	}
 
-	resp, err := client.Auth(ctx, authReq)
+	resp, err := client.cli.Auth(ctx, authReq)
 	if err != nil {
 		return onError(err)
 	}
@@ -99,7 +104,10 @@ func (app *App) Callback(ctx context.Context, req *api.CallbackRequest) (*api.Ca
 		return onError(err)
 	}
 
-	redirect.Query().Add("token", token.GetAccessToken())
+	query := redirect.Query()
+	query.Add("token", token.GetAccessToken())
+	redirect.RawQuery = query.Encode()
+
 	return &api.CallbackResponse{
 		RedirectUrl: redirect.String(),
 	}, nil
@@ -109,11 +117,12 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 	onError := func(err error) (*api.TokenResponse, error) {
 		return nil, errors.Wrap(err, "Account.Token")
 	}
-	provider, ok := app.providers[req.GetProviderKey()]
+	client, ok := app.providers[req.GetProviderKey()]
 	if !ok {
 		return onError(errors.New(fmt.Sprintf("Provider [%s] not found", req.GetProviderKey())))
 	}
 
+	provider := client.cli
 	result, err := provider.AccessToken(ctx, &api.AccessTokenRequest{
 		Code:  req.GetCode(),
 		State: req.GetState(),
@@ -139,7 +148,7 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 		return onError(err)
 	}
 
-	// New user when user account is null
+	// NewOauthCli user when user account is null
 	if userAccount == nil {
 		// User sub
 		sub := strings.ReplaceAll(uuid.New().String(), "-", "")
@@ -173,7 +182,7 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 
 	// TODO: Modify user account when login again
 
-	// New token
+	// NewOauthCli token
 	token, err := app.sm.New(ctx, userAccount.UserSub)
 	if err != nil {
 		return onError(err)
@@ -235,9 +244,8 @@ func (app *App) Logout(ctx context.Context, req *api.LogoutRequest) (*api.Logout
 }
 
 func (app *App) Router(r gin.IRouter) error {
-	acGroup := r.Group("account")
 	// Login page
-	acGroup.GET(loginHtml, func(c *gin.Context) {
+	r.GET(loginHtml, func(c *gin.Context) {
 		ctx := c.Request.Context()
 		info, err := app.Info(ctx, &empty.Empty{})
 		if err != nil {
@@ -251,7 +259,7 @@ func (app *App) Router(r gin.IRouter) error {
 		})
 	})
 	// Info api
-	acGroup.GET("", func(c *gin.Context) {
+	r.GET("", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		info, err := app.Info(ctx, &empty.Empty{})
 		if err != nil {
@@ -267,7 +275,7 @@ func (app *App) Router(r gin.IRouter) error {
 	})
 
 	// Logout
-	acGroup.GET("logout", func(c *gin.Context) {
+	r.GET("logout", func(c *gin.Context) {
 		token, err := utils.CheckToken(c)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusUnauthorized, err)
@@ -282,7 +290,7 @@ func (app *App) Router(r gin.IRouter) error {
 	})
 
 	// Refresh token
-	acGroup.POST("refresh", func(c *gin.Context) {
+	r.POST("refresh", func(c *gin.Context) {
 		token, err := utils.CheckToken(c)
 		if err != nil {
 			_ = c.AbortWithError(http.StatusUnauthorized, err)
@@ -297,7 +305,7 @@ func (app *App) Router(r gin.IRouter) error {
 	})
 
 	// Account auth client api
-	acCliGroup := acGroup.Group("/client/:clientId")
+	acCliGroup := r.Group("/client/:clientId")
 	acCliGroup.GET("authorize", func(c *gin.Context) {
 		clientId := c.Param("clientId")
 		var req struct {
@@ -341,7 +349,6 @@ func (app *App) Router(r gin.IRouter) error {
 			Code:        c.Query("code"),
 			ProviderKey: clientId,
 		})
-
 		utils.HandleJsonResp(c, err, resp)
 	})
 
@@ -352,11 +359,11 @@ func (app *App) Namespace() string {
 }
 
 type Option struct {
-	Name, Desc, RedirectUrl, Secret, Issuer string
-	ExpiresIn                               int64
-	RedisCli                                *redis.Client
-	Db                                      *sql.DB
-	Providers                               []oauth.Option
+	Name, Desc, RedirectUrl, Secret, Issuer, BasePath string
+	ExpiresIn                                         int64
+	RedisCli                                          *redis.Client
+	Db                                                *sql.DB
+	Providers                                         []oauth.Option
 }
 
 func New(option Option) types.ApiRoute {
@@ -365,14 +372,18 @@ func New(option Option) types.ApiRoute {
 			redirectUrl: option.RedirectUrl,
 			name:        option.Name,
 			desc:        option.Desc,
+			basePath:    option.BasePath,
 		},
 		sm:        newRedisSessionManager(option.RedisCli, option.ExpiresIn, option.Secret, option.Issuer),
 		storage:   newRdsStorage(option.Db),
-		providers: map[string]api.OAuthClientServer{},
+		providers: map[string]*oauthCli{},
 	}
 
 	for _, provider := range option.Providers {
-		accountSvc.providers[provider.ClientId] = oauth.NewOauth(provider)
+		accountSvc.providers[provider.ClientId] = &oauthCli{
+			source: string(provider.Source),
+			cli:    oauth.New(provider),
+		}
 	}
 
 	return accountSvc

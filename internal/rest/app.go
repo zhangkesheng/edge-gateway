@@ -49,7 +49,9 @@ func getOptions() []edge.Option {
 			AuthCli: []oauth.Option{
 				{
 					Source:          oauth.DingTalkLogin,
-
+					ClientId:        "dingoa7thvgz9fycf710ys",
+					Secret:          "8UrY9ZAwbNpFeedQ67A8nrWyoeRmBbEezi2Xe9hzd_4lRpM2WI8wQI9GWgr-UZeG",
+					DefaultRedirect: "https://auth.bestzks.com/app?clientId=dingoa7thvgz9fycf710ys",
 				},
 			},
 			Backends: []edge.BackendOption{
