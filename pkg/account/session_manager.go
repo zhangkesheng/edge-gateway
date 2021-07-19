@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -18,8 +17,9 @@ type Token struct {
 
 type SessionManager interface {
 	New(ctx context.Context, sub string) (*Token, error)
+	NewWithIdentity(ctx context.Context, identity map[string]interface{}) (*Token, error)
 	Refresh(ctx context.Context, token string) (*Token, error)
-	Verify(ctx context.Context, token string) (string, error)
+	Verify(ctx context.Context, token string) (map[string]interface{}, error)
 	Clear(ctx context.Context, token string) error
 }
 
@@ -28,6 +28,30 @@ type redisSM struct {
 	expiresIn int64
 	secret    string
 	issuer    string
+}
+
+func (r *redisSM) NewWithIdentity(ctx context.Context, identity map[string]interface{}) (*Token, error) {
+	onError := func(err error) (*Token, error) {
+		return nil, errors.Wrap(err, "RedisSM.NewWithIdentity")
+	}
+
+	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims(identity))
+
+	tokenString, err := claims.SignedString([]byte(r.secret))
+	if err != nil {
+		return onError(err)
+	}
+
+	token := &Token{
+		AccessToken: tokenString,
+		ExpiresIn:   r.expiresIn,
+	}
+
+	if err := r.cli.Set(tokenString, identity, time.Duration(r.expiresIn)*time.Second).Err(); err != nil {
+		return onError(err)
+	}
+
+	return token, nil
 }
 
 func (r *redisSM) New(ctx context.Context, sub string) (*Token, error) {
@@ -52,7 +76,7 @@ func (r *redisSM) New(ctx context.Context, sub string) (*Token, error) {
 		ExpiresIn:   r.expiresIn,
 	}
 
-	if err := r.cli.Set(tokenString, sub, time.Duration(r.expiresIn)*time.Second).Err(); err != nil {
+	if err := r.cli.Set(tokenString, map[string]interface{}{"sub": sub}, time.Duration(r.expiresIn)*time.Second).Err(); err != nil {
 		return onError(err)
 	}
 
@@ -73,7 +97,7 @@ func (r *redisSM) Refresh(ctx context.Context, token string) (*Token, error) {
 		return onError(err)
 	}
 
-	newToken, err := r.New(ctx, sub)
+	newToken, err := r.NewWithIdentity(ctx, sub)
 	if err != nil {
 		return onError(err)
 	}
@@ -81,9 +105,9 @@ func (r *redisSM) Refresh(ctx context.Context, token string) (*Token, error) {
 	return newToken, nil
 }
 
-func (r *redisSM) Verify(ctx context.Context, token string) (string, error) {
-	onError := func(err error) (string, error) {
-		return "", errors.Wrap(err, "RedisSM.Verify")
+func (r *redisSM) Verify(ctx context.Context, token string) (map[string]interface{}, error) {
+	onError := func(err error) (map[string]interface{}, error) {
+		return nil, errors.Wrap(err, "RedisSM.Verify")
 	}
 
 	jwtToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
@@ -97,13 +121,7 @@ func (r *redisSM) Verify(ctx context.Context, token string) (string, error) {
 		return onError(err)
 	}
 
-	claims := jwtToken.Claims
-	switch reflect.TypeOf(claims).Name() {
-	case "MapClaims":
-		return claims.(jwt.MapClaims)["sub"].(string), nil
-	default:
-		return claims.(jwt.StandardClaims).Subject, nil
-	}
+	return jwtToken.Claims.(jwt.MapClaims), nil
 }
 
 func (r *redisSM) Clear(ctx context.Context, token string) error {
