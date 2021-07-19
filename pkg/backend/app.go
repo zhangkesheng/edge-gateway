@@ -15,6 +15,7 @@ type ReverseProxy struct {
 	Rewrite map[string]string
 	Host    string
 	// Support all methods. Include: GET, POST, PUT, PATCH, HEAD, OPTIONS, DELETE, CONNECT
+	// TODO support all path: `*`
 	Apis []string
 }
 

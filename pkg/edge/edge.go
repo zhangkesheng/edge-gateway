@@ -33,6 +33,7 @@ func (edge *Edge) Router(r gin.IRouter) error {
 		return errors.Wrap(err, "Edge router err.")
 	}
 
+	// TODO: track
 	r.GET("status", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "OK"})
 	})

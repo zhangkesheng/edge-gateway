@@ -78,8 +78,14 @@ func (r *RdsStorage) SaveUserAccount(ctx context.Context, account *UserAccount) 
 		return onError(err)
 	}
 
-	if _, err = r.db.ExecContext(ctx, query, args...); err != nil {
+	if result, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return onError(err)
+	} else {
+		if id, err := result.LastInsertId(); err != nil {
+			return onError(err)
+		} else {
+			account.Id = id
+		}
 	}
 
 	return nil

@@ -111,6 +111,8 @@ func (app *App) Callback(ctx context.Context, req *api.CallbackRequest) (*api.Ca
 	return &api.CallbackResponse{
 		RedirectUrl: redirect.String(),
 		AccessToken: token.GetAccessToken(),
+		IdToken:     token.GetIdToken(),
+		ExpiresIn:   token.GetExpiresIn(),
 	}, nil
 }
 
@@ -173,6 +175,8 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 		if err = app.storage.SaveUserAccount(ctx, userAccount); err != nil {
 			return onError(err)
 		}
+
+		// Default use first account as primary account
 		if err = app.storage.SaveUser(ctx, &User{
 			Sub:            sub,
 			PrimaryAccount: userAccount.Id,
@@ -183,7 +187,7 @@ func (app *App) Token(ctx context.Context, req *api.TokenRequest) (*api.TokenRes
 
 	// TODO: Modify user account when login again
 
-	// NewOauthCli token
+	// Account token
 	token, err := app.sm.New(ctx, userAccount.UserSub)
 	if err != nil {
 		return onError(err)
@@ -367,6 +371,7 @@ type Option struct {
 	Providers                                         []oauth.Option
 }
 
+// TODO: 将account拎出来作为一个独立的服务
 func New(option Option) types.AccountRouter {
 	accountSvc := &App{
 		info: Info{

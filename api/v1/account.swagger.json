@@ -31,6 +31,13 @@
         },
         "access_token": {
           "type": "string"
+        },
+        "id_token": {
+          "type": "string"
+        },
+        "expires_in": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },

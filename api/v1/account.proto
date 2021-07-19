@@ -47,6 +47,8 @@ message CallbackRequest {
 message CallbackResponse {
     string redirect_url = 1;
     string access_token = 2;
+    string id_token = 3;
+    int64 expires_in = 4;
 }
 
 message TokenRequest {
