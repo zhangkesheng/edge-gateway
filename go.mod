@@ -21,6 +21,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tidwall/gjson v1.6.3
 	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
-	golang.org/x/net v0.0.0-20201016165138-7b1cca2348c0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	google.golang.org/grpc v1.33.2
 )
